@@ -12,6 +12,8 @@ const VoiceToSign = () => {
         const result = event.results[0][0].transcript;
         setText(result);
 
+        console.log("The voice sent: ", result);
+
         try {
             const response = await fetch(url.concat('/get-video-paths'), {
                 method: 'POST',

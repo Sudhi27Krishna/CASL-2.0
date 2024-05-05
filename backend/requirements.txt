@@ -3,3 +3,4 @@ Flask-SocketIO
 flask-cors
 mediapipe
 tensorflow
+torch
