@@ -2,19 +2,19 @@ import torch
 import numpy as np
 from transformer import Transformer
 
-max_sequence_length = 76
+max_sequence_length = 64
 
-input_vocab = ['<START>', ' ', '!', "'", ',', '0', '1', '2', '3', '4', '5', '7', '8', '9', '?', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '<PADDING>', '<END>']
-target_vocab = ['<START>', ' ', '!', "'", ',', '0', '1', '2', '3', '4', '5', '7', '8', '9', '?', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '<PADDING>', '<END>']
+input_vocab_vts = ['<START>', ' ', '!', "'", ',', '0', '1', '2', '3', '5', '6', '7', '8', ':', '?', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '°', '<PADDING>', '<END>']
+target_vocab_vts = ['<START>', ' ', '!', "'", ',', '0', '1', '2', '3', '5', '6', '7', '8', ':', '?', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '°', '<PADDING>', '<END>']
 
 START_TOKEN = '<START>'
 PADDING_TOKEN = '<PADDING>'
 END_TOKEN = '<END>'
 
-index_to_target = {k:v for k,v in enumerate(target_vocab)}
-target_to_index = {v:k for k,v in enumerate(target_vocab)}
-index_to_input = {k:v for k,v in enumerate(input_vocab)}
-input_to_index = {v:k for k,v in enumerate(input_vocab)}
+index_to_target = {k:v for k,v in enumerate(target_vocab_vts)}
+target_to_index = {v:k for k,v in enumerate(target_vocab_vts)}
+index_to_input = {k:v for k,v in enumerate(input_vocab_vts)}
+input_to_index = {v:k for k,v in enumerate(input_vocab_vts)}
 
 d_model = 512
 batch_size = 20
@@ -22,8 +22,8 @@ ffn_hidden = 1024
 num_heads = 8
 drop_prob = 0.1
 num_layers = 2
-max_sequence_length = 76
-target_vocab_size = len(target_vocab)
+max_sequence_length = 64
+target_vocab_size_vts = len(target_vocab_vts)
 
 transformer1 = Transformer(d_model, 
                           ffn_hidden,
@@ -31,7 +31,7 @@ transformer1 = Transformer(d_model,
                           drop_prob, 
                           num_layers, 
                           max_sequence_length,
-                          target_vocab_size,
+                          target_vocab_size_vts,
                           input_to_index,
                           target_to_index,
                           START_TOKEN, 
@@ -41,6 +41,23 @@ transformer1 = Transformer(d_model,
 transformer1.load_state_dict(torch.load("transformer.pth",map_location=torch.device('cpu')))
 
 transformer1.eval()
+
+transformer2 = Transformer(d_model, 
+                          ffn_hidden,
+                          num_heads, 
+                          drop_prob, 
+                          num_layers, 
+                          max_sequence_length,
+                          target_vocab_size_vts,
+                          input_to_index,
+                          target_to_index,
+                          START_TOKEN, 
+                          END_TOKEN, 
+                          PADDING_TOKEN)
+     
+transformer2.load_state_dict(torch.load("transformer_signtotext.pth",map_location=torch.device('cpu')))
+
+transformer2.eval()
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -71,12 +88,34 @@ def create_masks(inp_batch, tg_batch):
     return encoder_self_attention_mask, decoder_self_attention_mask, decoder_cross_attention_mask
 
 
-def translate(input_sentence): #translate function
+def translate_vts(input_sentence): #translate function
   input_sentence = (input_sentence,)
   target_sentence = ("",)
   for word_counter in range(max_sequence_length):
     encoder_self_attention_mask, decoder_self_attention_mask, decoder_cross_attention_mask= create_masks(input_sentence, target_sentence)
     predictions = transformer1(input_sentence,
+                              target_sentence,
+                              encoder_self_attention_mask, 
+                              decoder_self_attention_mask, 
+                              decoder_cross_attention_mask,
+                              enc_start_token=False,
+                              enc_end_token=False,
+                              dec_start_token=True,
+                              dec_end_token=False)
+    next_token_prob_distribution = predictions[0][word_counter]
+    next_token_index = torch.argmax(next_token_prob_distribution).item()
+    next_token = index_to_target[next_token_index]
+    target_sentence = (target_sentence[0] + next_token, )
+    if next_token == END_TOKEN:
+      break
+  return target_sentence[0]
+
+def translate_sts(input_sentence): #translate function
+  input_sentence = (input_sentence,)
+  target_sentence = ("",)
+  for word_counter in range(max_sequence_length):
+    encoder_self_attention_mask, decoder_self_attention_mask, decoder_cross_attention_mask= create_masks(input_sentence, target_sentence)
+    predictions = transformer2(input_sentence,
                               target_sentence,
                               encoder_self_attention_mask, 
                               decoder_self_attention_mask, 

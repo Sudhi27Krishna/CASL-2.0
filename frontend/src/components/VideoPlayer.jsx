@@ -19,7 +19,7 @@ const VideoPlayer = ({ videoPaths }) => {
 
     useEffect(() => {
         const video = videoRef.current;
-        video.src = 'http://127.0.0.1:8080/' + videoPaths[currentVideoIndex];
+        video.src = 'http://192.168.1.5:8080/' + videoPaths[currentVideoIndex];
         video.play();
     }, [currentVideoIndex, videoPaths]);
 

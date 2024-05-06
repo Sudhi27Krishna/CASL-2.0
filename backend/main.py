@@ -2,7 +2,8 @@ from flask import request, jsonify
 from config import app, socketio
 from slr_model import sign_to_text
 import cv2, json, re, os
-from nlpfunc import translate
+from nlpfunc import translate_sts
+from nlpfunc import translate_vts
 
 def generate_frames_webcam():
     for result, sentence in sign_to_text():
@@ -48,7 +49,7 @@ def get_paths(sentence):
 def send_voice_text_video_path():
     sentence = request.json.get('text')
     print(sentence)
-    sentence = translate(sentence)
+    sentence = translate_vts(sentence)
     sentence = remove_punctuation(sentence)
     if(sentence):
         paths = get_paths(sentence)
@@ -64,7 +65,7 @@ def send_voice_text_video_path():
 @app.route('/get-sentence', methods=['POST'])
 def get_sentence():
     msg = request.json.get('message')
-    sentence = translate(msg)
+    sentence = translate_sts(msg)
     if(sentence):
         return jsonify({'message': 'Message sent successfully', 'sentence': sentence}), 200
     return jsonify({'message': 'Empty sentence', 'sentence': ''}), 400
